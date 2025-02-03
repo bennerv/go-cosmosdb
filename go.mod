@@ -1,4 +1,4 @@
-module github.com/jewzaam/go-cosmosdb
+module github.com/bennerv/go-cosmosdb
 
 go 1.20
 

@@ -5,12 +5,13 @@ import (
 	"net/http"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/ugorji/go/codec"
 
-	"github.com/jewzaam/go-cosmosdb/example/cosmosdb"
-	"github.com/jewzaam/go-cosmosdb/example/types"
+	"github.com/bennerv/go-cosmosdb/example/cosmosdb"
+	"github.com/bennerv/go-cosmosdb/example/types"
 )
 
 const (
@@ -29,6 +30,8 @@ const (
 	request.setBody(body);
 }`
 )
+
+const oneYear = time.Hour * 24 * 365
 
 func TestE2E(t *testing.T) {
 	ctx := context.Background()
@@ -273,7 +276,12 @@ func TestE2E(t *testing.T) {
 		t.Error(docs)
 	}
 
-	tokendbc := cosmosdb.NewDatabaseClient(log, http.DefaultClient, jsonHandle, account+".documents.azure.com", cosmosdb.NewTokenAuthorizer(perm.Token))
+	// dummy token expiration auth
+	tokenAuth := cosmosdb.NewTokenAuthorizer(perm.Token, time.Now().Add(oneYear), func(ctx context.Context) (token string, newExpiration time.Time, err error) {
+		return perm.Token, time.Now().Add(oneYear), nil
+	})
+
+	tokendbc := cosmosdb.NewDatabaseClient(log, http.DefaultClient, jsonHandle, account+".documents.azure.com", tokenAuth)
 	tokencollc := cosmosdb.NewCollectionClient(tokendbc, dbid)
 	tokendc := cosmosdb.NewPersonClient(tokencollc, collid)
 
