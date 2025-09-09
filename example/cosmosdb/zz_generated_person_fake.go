@@ -30,13 +30,14 @@ func NewFakePersonClient(h *codec.JsonHandle) *FakePersonClient {
 
 // FakePersonClient is a FakePersonClient
 type FakePersonClient struct {
-	lock            sync.RWMutex
-	jsonHandle      *codec.JsonHandle
-	people          map[string]*pkg.Person
-	triggerHandlers map[string]fakePersonTriggerHandler
-	queryHandlers   map[string]fakePersonQueryHandler
-	sorter          func([]*pkg.Person)
-	etag            int
+	lock                sync.RWMutex
+	jsonHandle          *codec.JsonHandle
+	people              map[string]*pkg.Person
+	triggerHandlers     map[string]fakePersonTriggerHandler
+	queryHandlers       map[string]fakePersonQueryHandler
+	sorter              func([]*pkg.Person)
+	etag                int
+	changeFeedIterators []*fakePersonIterator
 
 	// returns true if documents conflict
 	conflictChecker func(*pkg.Person, *pkg.Person) bool
@@ -158,6 +159,10 @@ func (c *FakePersonClient) apply(ctx context.Context, partitionkey string, perso
 
 	c.people[person.ID] = person
 
+	if err = c.updateChangeFeeds(person); err != nil {
+		return nil, err
+	}
+
 	return c.deepCopy(person)
 }
 
@@ -246,7 +251,26 @@ func (c *FakePersonClient) ChangeFeed(*Options) PersonIterator {
 		return NewFakePersonErroringRawIterator(c.err)
 	}
 
-	return NewFakePersonErroringRawIterator(ErrNotImplemented)
+	newIter, ok := c.List(nil).(*fakePersonIterator)
+	if !ok {
+		return NewFakePersonErroringRawIterator(fmt.Errorf("internal error"))
+	}
+
+	c.changeFeedIterators = append(c.changeFeedIterators, newIter)
+	return newIter
+}
+
+func (c *FakePersonClient) updateChangeFeeds(person *pkg.Person) error {
+	for _, currentIterator := range c.changeFeedIterators {
+		newTpl, err := c.deepCopy(person)
+		if err != nil {
+			return err
+		}
+		currentIterator.people = append(currentIterator.people, newTpl)
+		currentIterator.done = false
+	}
+
+	return nil
 }
 
 func (c *FakePersonClient) processPreTriggers(ctx context.Context, person *pkg.Person, options *Options) error {
