@@ -3,9 +3,8 @@ module github.com/bennerv/go-cosmosdb
 go 1.20
 
 require (
-	github.com/sirupsen/logrus v1.7.0
+	github.com/sirupsen/logrus v1.8.3
 	github.com/ugorji/go/codec v1.2.12
-
 )
 
 require (
