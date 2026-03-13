@@ -138,7 +138,7 @@ func (c *FakePersonClient) apply(ctx context.Context, partitionkey string, perso
 			return nil, &Error{StatusCode: http.StatusNotFound}
 		}
 
-		if person.ETag != existingPerson.ETag {
+		if !options.NoETag && person.ETag != existingPerson.ETag {
 			return nil, &Error{StatusCode: http.StatusPreconditionFailed}
 		}
 	}
